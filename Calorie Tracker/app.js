@@ -45,18 +45,32 @@ const itemCtrl = ( function ( ) {
                     : 0;
 
             // Parse calories to number, create new item, push to items array, and return
-            calories    = parseInt( calories );
-            newItem     = new Item( ID, name, calories );
+            calories = parseInt( calories );
+            newItem  = new Item( ID, name, calories );
             data.items.push( newItem );
             return newItem;
+        },
+        // Fetch item by ID
+        getItemByID: function( id ) {
+            let found = null;
+            // Loop through items
+            data.items.forEach( item => { if( item.id === id ) { found = item } } );
+            // Return ID
+            return found;
+        },
+        // Set current item in data structure
+        setCurrentItem: function( item ) {
+            data.currentItem = item;
+        },
+        // Get current item in data structure
+        getCurrentItem: function( ) {
+            return data.currentItem;
         },
         // Get total calorie count
         getTotalCalories: function( ) {
             let total = 0;
             // Loop through items and add calories
-            data.items.forEach( function( items ) {
-                total += items.calories;
-            } );
+            data.items.forEach( items => total += items.calories );
 
             // Set total calories in data structure
             data.totalCalories = total;
@@ -79,27 +93,28 @@ const UICtrl = ( function ( ) {
     // UI SELECTORS
     const UISelectors = {
         itemList:           '#item-list',
-        addBtn:             '.add-btn',
         itemNameInput:      '#item-name',
         itemCaloriesInput:  '#item-calories',
-        totalCalories:      '.total-calories'
+        totalCalories:      '.total-calories',
+        addBtn:             '.add-btn',
+        updateBtn:          '.update-btn',
+        deleteBtn:          '.delete-btn',
+        backBtn:            '.back-btn'
     }
 
     // PUBLIC METHODS
     return {
         // Create new list items
         populateItemList: function( items ) {
-            let html    = '';
+            let html = '';
             // Loop through items from data structure and append generated HTML
-            items.forEach( function( item ) {
-                html    += `<li id="item-${item.id}">
-                            <strong>${item.name}: </strong> <em>${item.calories} Calories</em>
-                            <a href="#" class="secondary-content">
-                                <i class="edit-item fa fa-pencil"></i>
-                            </a>
-                        </li>
-                        `;
-            });
+            items.forEach( ( item ) => { html +=
+                 `<li id="item-${item.id}">
+                    <strong>${item.name}: </strong> <em>${item.calories} Calories</em>
+                    <a href="#" class="secondary-content">
+                        <i class="edit-item fa fa-pencil"></i>
+                    </a>
+                </li>`; } );
             // Insert list items into DOM
             qSelect( UISelectors.itemList ).innerHTML = html;
         },
@@ -113,11 +128,11 @@ const UICtrl = ( function ( ) {
         // Adds new item to UI
         addListItem: function( item ) {
             // Show item list
-            qSelect( UISelectors.itemList ).style.display   = 'block';
+            qSelect( UISelectors.itemList ).style.display = 'block';
             // Create li element with class and ID
-            const li = document.createElement( 'li' );
+            const li     = document.createElement( 'li' );
             li.className = 'collection-item';
-            li.id = `item-${item.id}`;
+            li.id        = `item-${item.id}`;
 
             // Add HTML
             li.innerHTML = `
@@ -134,12 +149,34 @@ const UICtrl = ( function ( ) {
             qSelect( UISelectors.itemNameInput ).value      = '';
             qSelect( UISelectors.itemCaloriesInput ).value  = '';
         },
+        // Add current item to edit form
+        addItemToForm: function( ) {
+            qSelect( UISelectors.itemNameInput ).value      = itemCtrl.getCurrentItem( ).name;
+            qSelect( UISelectors.itemCaloriesInput ).value  = itemCtrl.getCurrentItem( ).calories;
+            UICtrl.showEditState( );
+        },
         // Hides empty list
         hideList: function( ) {
             qSelect( UISelectors.itemList ).style.display   = 'none';
         },
+        // Show total calories
         showTotalCalories: function( totalCalories ) {
             qSelect(UISelectors.totalCalories ).textContent = totalCalories;
+        },
+        //  Clear edit state of buttons
+        clearEditState: function( ) {
+            UICtrl.clearInput( );
+            qSelect( UISelectors.updateBtn ).style.display  = 'none';
+            qSelect( UISelectors.deleteBtn ).style.display  = 'none';
+            qSelect( UISelectors.backBtn ).style.display    = 'none';
+            qSelect( UISelectors.addBtn ).style.display     = 'inline';
+        },
+        //  Clear edit state of buttons
+        showEditState: function( ) {
+            qSelect( UISelectors.updateBtn ).style.display  = 'inline';
+            qSelect( UISelectors.deleteBtn ).style.display  = 'inline';
+            qSelect( UISelectors.backBtn ).style.display    = 'inline';
+            qSelect( UISelectors.addBtn ).style.display     = 'none';
         },
         // Fetches UI selectors
         getSelectors: function( ){
@@ -161,9 +198,11 @@ const App = ( function ( itemCtrl, UICtrl) {
         const UISelectors = UICtrl.getSelectors( );
         // Add new item event
         qSelect( UISelectors.addBtn ).addEventListener( 'click', itemAddSubmit );
-      }
+        // Edit icon click event
+        qSelect( UISelectors.itemList ).addEventListener( 'click', itemEditClick );
+    }
 
-    // "ADD ITEM" BUTTON SUBMIT
+    // ADD ITEM BUTTON SUBMIT
     const itemAddSubmit = function( e ) {
         // Get form input from UI controller
         const input = UICtrl.getItemInput( );
@@ -184,6 +223,28 @@ const App = ( function ( itemCtrl, UICtrl) {
             // If no valid input: Prompt input
         }
 
+        // Prevent default behavior
+        e.preventDefault( );
+    }
+
+    // EDIT ITEM BUTTON
+    const itemEditClick = function( e ) {
+        // Delegate event
+        if( e.target.classList.contains( 'edit-item' ) ) {
+            // Get list item ID (item-0, item-1, etc)
+            const listID     = e.target.parentNode.parentNode.id;
+            // Split into array and get actual ID
+            const listIDArr  = listID.split( '-' );
+            const id         = parseInt( listIDArr[1] );
+
+            // Get & set current item
+            const itemToEdit = itemCtrl.getItemByID( id );
+            itemCtrl.setCurrentItem( itemToEdit );
+            // Add item to form
+            UICtrl.addItemToForm( );
+        }
+
+        // Prevent default behavior
         e.preventDefault( );
     }
 
@@ -191,6 +252,9 @@ const App = ( function ( itemCtrl, UICtrl) {
     return {
         // Initialization
         init: function( ) {
+            // Set initial state
+            UICtrl.clearEditState( );
+
             // Fetch items from data structure
             const items = itemCtrl.getItems( );
 
@@ -200,8 +264,9 @@ const App = ( function ( itemCtrl, UICtrl) {
             items.length === 0  ? UICtrl.hideList( ) 
                                 : UICtrl.populateItemList( items );
 
-            // Get total calories and add to UI
+            // Get total calories
             const totalCalories = itemCtrl.getTotalCalories( );
+            // Add item to UI
             UICtrl.showTotalCalories( totalCalories );
 
             // Load event listeners
